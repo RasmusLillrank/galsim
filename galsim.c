@@ -17,30 +17,30 @@ struct body{
 struct vec {
   double x;
   double y;
-}
+};
 
 
-const float circleRadius=0.005, circleColor=0;
+const float circleColor=0;
 const int windowWidth=800;
 
 const double epsilon = 0.001;
 body_t* read_file(int N, char* input_name) {
     FILE* file = fopen(input_name, "r");
     if (!file){
-      printf("Error opening file!");
+      printf("Error opening file!\n");
       return NULL;
     }
 
     body_t *data = (body_t*)malloc(N*6*sizeof(double));  // check it later- 
     if (!data){
-      printf("File allocation error!");
+      printf("File allocation error!\n");
       fclose(file);
       return NULL;
     }
     
     // size_t item_raad= fread(data,sizeof)
     if (fread(data, sizeof(body_t), N, file) != N) {
-        printf("Incorrect number of particles!");
+        printf("Incorrect number of particles!\n");
         free(data);
         fclose(file);
         return NULL;
@@ -56,69 +56,68 @@ for j
  sum += -gravity * mass[i] * mass[j] * rel_dist(i,j) / (dist(i,j) + epsilon) ** 3
 */
 
-vec_t force(int* r, int j, body_t* bodies, int N){
+vec_t force(int j, body_t* bodies, int N){
     
-        double G = 100/N;
-        double sum[2] = {0, 0};
-     for(int i = 0; i < N; i++){
+  double G = 100/N;
+  vec_t sum = {0, 0};
+  for(int i = 0; i < N; i++){
 
-        double dist_x = bodies[j].posX - bodies[i].posX;
-        double dist_y = bodies[j].posY - bodies[i].posY;
-        double relative = sqrt((dist_x*dist_x)+(dist_y*dist_y));
+    double dist_x = bodies[j].posX - bodies[i].posX;
+    double dist_y = bodies[j].posY - bodies[i].posY;
+    double relative = sqrt((dist_x*dist_x)+(dist_y*dist_y));
 
-        double dist_ux = (bodies[j].posX - bodies[i].posX);
-        double dist_uy = (bodies[j].posY - bodies[i].posY);
-        
-        double distu[2] = {dist_ux, dist_uy};
+    double dist_ux = (bodies[j].posX - bodies[i].posX);
+    double dist_uy = (bodies[j].posY - bodies[i].posY);
+    
+    vec_t distu = {dist_ux, dist_uy};
 
-        sum[0] += (bodies[i].mass)/(relative-epsilon)*distu[0];
-        sum[1] += (bodies[i].mass)/(relative-epsilon)*distu[1];
+    double rel_eps = (relative+epsilon) * (relative+epsilon) * (relative+epsilon);
+    sum.x += (bodies[i].mass)/rel_eps*distu.x;
+    sum.y += (bodies[i].mass)/rel_eps*distu.y;
 
-     }
-
-     
-    vec_t results = {-G * bodies[j].mass * sum[0], -G * bodies[j].mass * sum[1]};
-    return results;
-}
-
-void update_accelerate(body_t* bodies, int N){
-  for (int i =1 ; i <N,i++){
-    double sum[1];
-    force(force_result)
   }
-  
+  vec_t results = {-G * bodies[j].mass * sum.x, -G * bodies[j].mass * sum.y};
+  return results;
 }
 
-void update_velocity(){
-  //previous the vecility
-  // and then force/mass - new vector of the speed
-  //update the velocity 
+vec_t acceleration(int i, body_t* bodies, vec_t force) {
+  return (vec_t) {force.x/bodies[i].mass, force.y/bodies[i].mass};
+}
+
+void update_bodies(body_t* bodies, int N, double dt){
+  for(int i = 0; i < N; i++) {
+    vec_t f = force(i, bodies, N);
+    vec_t a = (i, bodies, f);
+    bodies[i].velX += dt*a.x;
+    bodies[i].velY += dt*a.y;
+    bodies[i].posX += dt*bodies[i].velX;
+    bodies[i].posY += dt*bodies[i].velY;
+  }
 }
 
 
 int main(int argc, char *argv[]) {
   if (argc != 6) {
-    printf("Usage: %s N filename nsteps delta_t graphics", argv[0]);
+    printf("Usage: %s N filename nsteps delta_t graphics\n", argv[0]);
+    return 0;
   }
   const int N = atoi(argv[1]);
   body_t* bodies = read_file(N, argv[2]);
   const int nsteps = atoi(argv[3]);
   const double dt = atof(argv[4]);
   const int graphics = atoi(argv[5]);
-  if(!bodies) { return; }
+  if(!bodies) {return -1;} // Something went wrong reading the input file
 
   float L=1, W=1;
 
   InitializeGraphics(argv[0],windowWidth,windowWidth);
   SetCAxes(0,1);
-  //int N = 50;
-  //body_t* bodies = read_file(N, "input_data/ellipse_N_00050.gal");
-
   printf("Hit q to quit.\n");
   while(!CheckForQuit()) {
 
     /* Call graphics routines. */
     ClearScreen();
+    update_bodies(bodies, N, dt);
     for(int i = 0; i < N; i++) {
         DrawCircle(bodies[i].posX, bodies[i].posY, L, W, bodies[i].mass*0.005, circleColor);
     }
