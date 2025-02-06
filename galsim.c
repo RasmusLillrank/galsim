@@ -61,19 +61,15 @@ vec_t force(int j, body_t* bodies, int N){
   double G = 100/N;
   vec_t sum = {0, 0};
   for(int i = 0; i < N; i++){
+    if (i == j) {continue;}
 
     double dist_x = bodies[j].posX - bodies[i].posX;
     double dist_y = bodies[j].posY - bodies[i].posY;
-    double relative = sqrt((dist_x*dist_x)+(dist_y*dist_y));
+    double relative = sqrt((dist_x*dist_x)+(dist_y*dist_y)); 
 
-    double dist_ux = (bodies[j].posX - bodies[i].posX);
-    double dist_uy = (bodies[j].posY - bodies[i].posY);
-    
-    vec_t distu = {dist_ux, dist_uy};
-
-    double rel_eps = (relative+epsilon) * (relative+epsilon) * (relative+epsilon);
-    sum.x += (bodies[i].mass)/rel_eps*distu.x;
-    sum.y += (bodies[i].mass)/rel_eps*distu.y;
+    double dist_eps = (relative+epsilon) * (relative+epsilon) * (relative+epsilon);
+    sum.x += (bodies[i].mass * relative)/dist_eps*dist_x;
+    sum.y += (bodies[i].mass * relative)/dist_eps*dist_y;
 
   }
   vec_t results = {-G * bodies[j].mass * sum.x, -G * bodies[j].mass * sum.y};
@@ -102,6 +98,7 @@ int main(int argc, char *argv[]) {
     return 0;
   }
   const int N = atoi(argv[1]);
+  printf("N: %i \n", N);
   body_t* bodies = read_file(N, argv[2]);
   const int nsteps = atoi(argv[3]);
   const double dt = atof(argv[4]);
@@ -113,8 +110,9 @@ int main(int argc, char *argv[]) {
   InitializeGraphics(argv[0],windowWidth,windowWidth);
   SetCAxes(0,1);
   printf("Hit q to quit.\n");
-  while(!CheckForQuit()) {
-
+  int steps = 0;
+  while(steps < nsteps && !CheckForQuit()) {
+    steps++;
     /* Call graphics routines. */
     ClearScreen();
     update_bodies(bodies, N, dt);
