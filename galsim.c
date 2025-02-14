@@ -50,6 +50,16 @@ body_t* read_file(int N, char* input_name) {
     }
 }
 
+int write_file(int N, body_t* data) {
+  FILE* file = fopen("out.gal", "w");
+  if(!file){
+    printf("Error opening file!\n");
+    return 0;
+  }
+  fwrite((void*)data, sizeof(body_t), N, file);
+  return 0;
+}
+
 /*
 calculate force
 for j
@@ -58,34 +68,36 @@ for j
 
 vec_t force(int j, body_t* bodies, int N){
     
-  double G = 100/N;
+  double G = (double)100/N;
   vec_t sum = {0, 0};
   for(int i = 0; i < N; i++){
     if (i == j) {continue;}
 
     double dist_x = bodies[j].posX - bodies[i].posX;
     double dist_y = bodies[j].posY - bodies[i].posY;
-    double relative = sqrt((dist_x*dist_x)+(dist_y*dist_y)); 
+    double relative = sqrt(dist_x*dist_x+dist_y*dist_y); 
 
     double dist_eps = (relative+epsilon) * (relative+epsilon) * (relative+epsilon);
-    sum.x += (bodies[i].mass * relative)/dist_eps*dist_x;
-    sum.y += (bodies[i].mass * relative)/dist_eps*dist_y;
-
+    sum.x += (-G * bodies[j].mass * bodies[i].mass*dist_x)/dist_eps;
+    sum.y += (-G * bodies[j].mass * bodies[i].mass*dist_y)/dist_eps;
   }
-  vec_t results = {-G * bodies[j].mass * sum.x, -G * bodies[j].mass * sum.y};
+  vec_t results = {sum.x, sum.y};
   return results;
 }
 
 vec_t acceleration(int i, body_t* bodies, vec_t force) {
   return (vec_t) {force.x/bodies[i].mass, force.y/bodies[i].mass};
+  
 }
 
 void update_bodies(body_t* bodies, int N, double dt){
   for(int i = 0; i < N; i++) {
     vec_t f = force(i, bodies, N);
-    vec_t a = (i, bodies, f);
+    vec_t a = acceleration(i, bodies, f);
     bodies[i].velX += dt*a.x;
     bodies[i].velY += dt*a.y;
+  }
+  for(int i = 0; i < N; i++) {
     bodies[i].posX += dt*bodies[i].velX;
     bodies[i].posY += dt*bodies[i].velY;
   }
@@ -123,6 +135,7 @@ int main(int argc, char *argv[]) {
     /* Sleep a short while to avoid screen flickering. */
     usleep(3000);
   }
+  write_file(N, bodies);
   FlushDisplay();
   CloseDisplay();
   return 0;
