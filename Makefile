@@ -1,6 +1,6 @@
 CC = gcc
 LD = gcc
-CFLAGS = -O3 -Wall -funroll-loops
+CFLAGS = -O3 -Wall -funroll-loops -ffast-math -march=native -g 
 RM = /bin/rm -f
 OBJS = galsim.o graphics/graphics.o 
 EXECUTABLE = galsim
@@ -27,10 +27,10 @@ graphics/graphics.o: graphics/graphics.c graphics/graphics.h
 galsim.o: galsim.c
 	$(CC) $(CFLAGS) -c galsim.c
 
-test-output: galsim
+test-time: galsim
 	./galsim $(N) $(INPUT) $(STEPS) $(DT) $(GRAPHICS)
 
-check-output: test-output compare
+test-output: test-output compare
 	./compare $(N) out.gal $(REF_INPUT)
 
 clean:
