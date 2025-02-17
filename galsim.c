@@ -65,21 +65,22 @@ int write_file(int N, body_t* data) {
 }
 
 void update_bodies(int N, double dt, double* restrict posX, double* restrict posY, double* restrict mass, double* restrict velX, double* restrict velY){
+  const double G = (double)100/N;
   for(int j = 0; j < N; j++) {
-    const double G = (double)100/N;
     double sumX = 0;
     double sumY = 0;
     for(int i = 0; i < N; i++){
-
       const double dist_x = posX[j]- posX[i];
       const double dist_y = posY[j] - posY[i];
       const double relative = sqrt(dist_x*dist_x+dist_y*dist_y); 
 
       const double dist_eps = (relative+epsilon) * (relative+epsilon) * (relative+epsilon);
       const double mask = (i != j) ? 1.0 : 0.0;
-      sumX += mask * (-G * mass[j]* mass[i]*dist_x)/dist_eps;
-      sumY += mask * (-G * mass[j]* mass[i]*dist_y)/dist_eps;
+      sumX += mask * mass[i]*dist_x/dist_eps;
+      sumY += mask * mass[i]*dist_y/dist_eps;
     }
+    sumX = -G * mass[j] * sumX;
+    sumY = -G * mass[j] * sumY;
     velX[j] += dt*(sumX/mass[j]);
     velY[j] += dt*(sumY/mass[j]);
   }
