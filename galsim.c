@@ -55,7 +55,7 @@ body_t* read_file(int N, char* input_name) {
 }
 
 int write_file(int N, body_t* data) {
-  FILE* file = fopen("out.gal", "w");
+  FILE* file = fopen("result.gal", "w");
   if(!file){
     printf("Error opening file!\n");
     return 0;
