@@ -7,6 +7,7 @@
 typedef struct vec vec_t;
 typedef struct body body_t;
 
+// Struct used for reading and saving
 struct body{  
     double posX;
     double posY;
@@ -21,6 +22,8 @@ const float circleColor=0;
 const int windowWidth=800;
 const double epsilon = 0.001;
 
+// Gets wall time
+// Taken from Lab 7, Task 6
 double get_wall_seconds() {
   struct timeval tv;
   gettimeofday(&tv, NULL);
@@ -28,21 +31,24 @@ double get_wall_seconds() {
   return seconds;
 }
 
+// Reading the input .gal file
 body_t* read_file(int N, char* input_name) {
+    // If file is not found or readable, etc
     FILE* file = fopen(input_name, "r");
     if (!file){
       printf("Error opening file!\n");
       return NULL;
     }
 
-    body_t *data = (body_t*)malloc(N*6*sizeof(double));  // check it later- 
+    // Allocating data for file, if out of memory exit
+    body_t *data = (body_t*)malloc(N*6*sizeof(double)); 
     if (!data){
       printf("File allocation error!\n");
       fclose(file);
       return NULL;
     }
     
-    // size_t item_raad= fread(data,sizeof)
+    // Check if N > particles in file, exit
     if (fread(data, sizeof(body_t), N, file) != N) {
         printf("Incorrect number of particles!\n");
         free(data);
@@ -54,48 +60,61 @@ body_t* read_file(int N, char* input_name) {
     }
 }
 
+// Writing the result to result.gal
 int write_file(int N, body_t* data) {
+  // Create/open result.gal
   FILE* file = fopen("result.gal", "w");
   if(!file){
     printf("Error opening file!\n");
     return 0;
   }
+  // Write data to result.gal
   fwrite((void*)data, sizeof(body_t), N, file);
   fclose(file);
+  // Freeing the data
   free(data);
   return 0;
 }
 
 void update_bodies(int N, double dt, double* restrict posX, double* restrict posY, double* restrict mass, double* restrict velX, double* restrict velY){
+  // Set the gravity constant
   const double G = (double)100/N;
-  for(int j = 0; j < N-1; j++) {
+  //
+  for(int i = 0; i < N-1; i++) {
     double accX = 0;
     double accY = 0;
-    for(int i = j+1; i < N; i++){
-      const double dist_x = posX[j] - posX[i];
-      const double dist_y = posY[j] - posY[i];
+    for(int j = i+1; j < N; j++){
+      // Distance related calculations
+      const double dist_x = posX[i] - posX[j];
+      const double dist_y = posY[i] - posY[j];
       const double relative = sqrt(dist_x*dist_x + dist_y*dist_y);
       const double dist_eps = (relative+epsilon) * (relative+epsilon) * (relative+epsilon);
 
+      // Calculate force and force vectors between i and j
       const double force = -G * mass[j] * mass[i] / dist_eps;
       const double forceX = force * dist_x;
       const double forceY = force * dist_y;
 
-      accX += forceX / mass[j];
-      accY += forceY / mass[j];
+      // Update velocities for all j particles
+      velX[j] -= dt * (forceX / mass[j]);
+      velY[j] -= dt * (forceY / mass[j]);
 
-      velX[i] -= dt * (forceX / mass[i]);
-      velY[i] -= dt * (forceY / mass[i]);
+      // Update force sum for i particle
+      accX += forceX / mass[i];
+      accY += forceY / mass[i];
     }
-    velX[j] += dt * accX;
-    velY[j] += dt * accY;
+    // Update velocities for i particle
+    velX[i] += dt * accX;
+    velY[i] += dt * accY;
   }
+  // Update position for all particles
   for(int i = 0; i < N; i++) {
     posX[i]+= dt*velX[i];
     posY[i]+= dt*velY[i];
   }
 }
 
+// After loading data store it in separate arrays
 void split_bodies(int N, body_t* bodies, double* posX, double* posY, double* mass, double* velX, double* velY) {
   for(int i = 0; i < N; i++) {
     posX[i] = bodies[i].posX;
@@ -106,13 +125,15 @@ void split_bodies(int N, body_t* bodies, double* posX, double* posY, double* mas
   }
 }
 
+// After running the simulation store the updated data back into the body_t data array
 void join_bodies(int N, body_t* bodies, double* posX, double* posY, double* mass, double* velX, double* velY) {
   for(int i = 0; i < N; i++) {
     bodies[i].posX = posX[i];
     bodies[i].posY = posY[i];
     bodies[i].velX = velX[i];
     bodies[i].velY = velY[i];
-    }
+  }
+  // Free the individual data arrays
   free(posX);
   free(posY);
   free(mass);
