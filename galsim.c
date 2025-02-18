@@ -61,6 +61,8 @@ int write_file(int N, body_t* data) {
     return 0;
   }
   fwrite((void*)data, sizeof(body_t), N, file);
+  fclose(file);
+  free(data);
   return 0;
 }
 
@@ -110,7 +112,12 @@ void join_bodies(int N, body_t* bodies, double* posX, double* posY, double* mass
     bodies[i].posY = posY[i];
     bodies[i].velX = velX[i];
     bodies[i].velY = velY[i];
-  }
+    }
+  free(posX);
+  free(posY);
+  free(mass);
+  free(velX);
+  free(velY);
 }
 
 int main(int argc, char *argv[]) {

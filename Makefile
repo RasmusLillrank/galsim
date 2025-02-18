@@ -1,6 +1,6 @@
 CC = gcc
 LD = gcc
-CFLAGS = -Ofast -Wall -ffast-math -march=native -funroll-loops
+CFLAGS = -O3 -Wall -ffast-math -mavx2 -funroll-loops
 RM = /bin/rm -f -R
 OBJS = galsim.o graphics/graphics.o 
 EXECUTABLE = galsim
@@ -35,7 +35,7 @@ test-output: test-time compare
 	./compare $(N) result.gal $(REF_INPUT)
 
 clean:
-	$(RM) $(EXECUTABLE) $(OBJS) compare out.gal A3 tmpdir_for_checking A3.tar.gz && make -C graphics clean
+	$(RM) $(EXECUTABLE) $(OBJS) compare result.gal A3 tmpdir_for_checking A3.tar.gz && make -C graphics clean
 
 pack: clean
 	mkdir A3 && cp -R graphics galsim.c report.pdf best_timing.txt Makefile A3 && tar -czf A3.tar.gz A3
