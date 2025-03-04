@@ -4,7 +4,7 @@ CFLAGS = -O3 -Wall -ffast-math -march=native -funroll-loops
 RM = /bin/rm -f -R
 OBJS = galsim.o graphics/graphics.o 
 EXECUTABLE = galsim
-LDFLAGS=-L/opt/X11/lib -lX11 -lm
+LDFLAGS=-L/opt/X11/lib -lX11 -lm -lpthread
 INCLUDES=-I/opt/X11/include
 
 N=3000

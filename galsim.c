@@ -3,6 +3,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <sys/time.h>
+#include <pthread.h>
 
 typedef struct vec vec_t;
 typedef struct body body_t;
@@ -89,20 +90,21 @@ void update_bodies(int N, double dt, double* restrict posX, double* restrict pos
       const double dist_x = posX[i] - posX[j];
       const double dist_y = posY[i] - posY[j];
       const double relative = sqrt(dist_x*dist_x + dist_y*dist_y);
-      const double dist_eps = (relative+epsilon) * (relative+epsilon) * (relative+epsilon);
+      const double rel_eps = relative+epsilon;
+      const double dist_eps = rel_eps * rel_eps * rel_eps; //  relative+epsilon can be pre-computed
 
       // Calculate force and force vectors between i and j
-      const double force = -G * mass[j] * mass[i] / dist_eps;
+      const double force = -G / dist_eps; // -G, mass can be simplified
       const double forceX = force * dist_x;
       const double forceY = force * dist_y;
 
       // Update velocities for all j particles
-      velX[j] -= dt * (forceX / mass[j]);
-      velY[j] -= dt * (forceY / mass[j]);
+      velX[j] -= dt * (forceX * mass[i]);
+      velY[j] -= dt * (forceY * mass[i]);
 
       // Update force sum for i particle
-      accX += forceX / mass[i];
-      accY += forceY / mass[i];
+      accX += forceX * mass[j];
+      accY += forceY * mass[j];
     }
     // Update velocities for i particle
     velX[i] += dt * accX;
