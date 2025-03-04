@@ -5,6 +5,7 @@ RM = /bin/rm -f -R
 OBJS = galsim.o graphics/graphics.o 
 EXECUTABLE = galsim
 LDFLAGS=-L/opt/X11/lib -lX11 -lm
+INCLUDES=-I/opt/X11/include
 
 N=3000
 INPUT=input_data/ellipse_N_03000.gal
@@ -20,13 +21,13 @@ compare: compare_gal_files/compare_gal_files.c
 	$(CC) -lm compare_gal_files/compare_gal_files.c -o compare
 
 $(EXECUTABLE): $(OBJS)
-	$(LD) $(LDFLAGS) $(OBJS) -o $(EXECUTABLE)
+	$(LD) $(OBJS) -o $(EXECUTABLE) $(LDFLAGS) $(INCLUDES)
 	
 graphics/graphics.o: graphics/graphics.c graphics/graphics.h
 	make -C graphics
 
 galsim.o: galsim.c
-	$(CC) $(CFLAGS) -c galsim.c
+	$(CC) $(CFLAGS) -c galsim.c $(LDFLAGS) $(INCLUDES)
 
 test-time: galsim
 	./galsim $(N) $(INPUT) $(STEPS) $(DT) $(GRAPHICS)

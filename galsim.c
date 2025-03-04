@@ -76,6 +76,7 @@ int write_file(int N, body_t* data) {
   return 0;
 }
 
+
 void update_bodies(int N, double dt, double* restrict posX, double* restrict posY, double* restrict mass, double* restrict velX, double* restrict velY){
   // Set the gravity constant
   const double G = (double)100/N;
