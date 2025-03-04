@@ -4,9 +4,18 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <pthread.h>
+#include <string.h>
 
 typedef struct vec vec_t;
 typedef struct body body_t;
+typedef struct args args_t;
+
+// Initializing global pointers
+double* restrict posX;
+double* restrict posY;
+double* restrict mass;
+double* restrict velX;
+double* restrict velY;
 
 // Struct used for reading and saving
 struct body{  
@@ -17,6 +26,15 @@ struct body{
     double velY;
     double brightness;
 };
+
+struct args{
+  int N;
+  int nthreads;
+  int id;
+  double dt;
+  double* dvelX;
+  double* dvelY;
+}; 
 
 
 const float circleColor=0;
@@ -78,11 +96,25 @@ int write_file(int N, body_t* data) {
 }
 
 
-void update_bodies(int N, double dt, double* restrict posX, double* restrict posY, double* restrict mass, double* restrict velX, double* restrict velY){
+void* update_bodies(void* args){
+
+  args_t* args2 = (args_t*)args;
+
+  const int N = args2->N;
+  const int nthreads = args2->nthreads;
+  const int id = args2->id;
+  const double dt = args2->dt;
+  double* restrict dvelX = args2->dvelX;
+  double* restrict dvelY = args2->dvelY;
+  // Initialize delta velocity to 0
+  memset(args2->dvelX, 0, N*sizeof(double));
+  memset(args2->dvelY, 0, N*sizeof(double));
+
+  
   // Set the gravity constant
   const double G = (double)100/N;
   //
-  for(int i = 0; i < N-1; i++) {
+  for(int i = id; i < N-1; i+= nthreads) {
     double accX = 0;
     double accY = 0;
     for(int j = i+1; j < N; j++){
@@ -99,22 +131,19 @@ void update_bodies(int N, double dt, double* restrict posX, double* restrict pos
       const double forceY = force * dist_y;
 
       // Update velocities for all j particles
-      velX[j] -= dt * (forceX * mass[i]);
-      velY[j] -= dt * (forceY * mass[i]);
+      dvelX[j] -= dt * (forceX * mass[i]);
+      dvelY[j] -= dt * (forceY * mass[i]);
 
       // Update force sum for i particle
       accX += forceX * mass[j];
       accY += forceY * mass[j];
     }
     // Update velocities for i particle
-    velX[i] += dt * accX;
-    velY[i] += dt * accY;
+    dvelX[i] += dt * accX;
+    dvelY[i] += dt * accY;
   }
-  // Update position for all particles
-  for(int i = 0; i < N; i++) {
-    posX[i]+= dt*velX[i];
-    posY[i]+= dt*velY[i];
-  }
+  // Update position for all particles 
+  return NULL;
 }
 
 // After loading data store it in separate arrays
@@ -145,8 +174,8 @@ void join_bodies(int N, body_t* bodies, double* posX, double* posY, double* mass
 }
 
 int main(int argc, char *argv[]) {
-  if (argc != 6) {
-    printf("Usage: %s N filename nsteps delta_t graphics\n", argv[0]);
+  if (argc != 7) {
+    printf("Usage: %s N filename nsteps delta_t graphics nthreads\n", argv[0]);
     return 0;
   }
   const int N = atoi(argv[1]);
@@ -154,21 +183,59 @@ int main(int argc, char *argv[]) {
   const int nsteps = atoi(argv[3]);
   const double dt = atof(argv[4]);
   const int graphics = atoi(argv[5]);
+
+  const int nthreads = atoi(argv[6]);
+  printf("nthreads = %d\n", nthreads);
+  
   if(!bodies) {return -1;} // Something went wrong reading the input file
   
-  double* posX = (double *)malloc(sizeof(double)*N);
-  double* posY = (double *)malloc(sizeof(double)*N);
-  double* mass = (double *)malloc(sizeof(double)*N);
-  double* velX = (double *)malloc(sizeof(double)*N);
-  double* velY = (double *)malloc(sizeof(double)*N);
+  posX = (double *)malloc(sizeof(double)*N);
+  posY = (double *)malloc(sizeof(double)*N);
+  mass = (double *)malloc(sizeof(double)*N);
+  velX = (double *)malloc(sizeof(double)*N);
+  velY = (double *)malloc(sizeof(double)*N);
   split_bodies(N, bodies, posX, posY, mass, velX, velY);
+
+  // Create threads
+  pthread_t threads[nthreads];
+  args_t args[nthreads];
+  double* dvelX[nthreads];
+  double* dvelY[nthreads];
+
+  // Initialize arguments
+  for(int i = 0; i < nthreads; i++) {
+    args[i].dt = dt;
+    args[i].N = N;
+    args[i].id = i;
+    args[i].nthreads = nthreads;
+    args[i].dvelX = (double*)malloc(sizeof(double)*N);
+    args[i].dvelY = (double*)malloc(sizeof(double)*N);
+  }
 
   double time = get_wall_seconds();
   // Running without graphics
   if(!graphics) {
     for(int i = 0; i < nsteps; i++) {
-      update_bodies(N, dt, posX, posY, mass, velX, velY);
+      for(int j = 0; j < nthreads; j++) { 
+        // Launch threads
+        pthread_create(&threads[j], NULL, update_bodies, (void*)&args[j]); 
+      }
+      // Join threads
+      for(int j = 0; j < nthreads; j++) {
+        pthread_join(threads[j], NULL);
+        // Sync velocities
+        for(int k = 0; k < N; k++) {
+          velX[k] += args[j].dvelX[k];
+          velY[k] += args[j].dvelY[k];
+        }
+      }
+      // Update velocities
+      for(int j = 0; j < N; j++) {
+        posX[i]+= dt*velX[i];
+        posY[i]+= dt*velY[i];
+      }
     }
+    
     time = get_wall_seconds()-time;
     printf("No graphics, time = %lf\n", time);
     join_bodies(N, bodies, posX, posY, mass, velX, velY);
@@ -180,12 +247,15 @@ int main(int argc, char *argv[]) {
   InitializeGraphics(argv[0],windowWidth,windowWidth);
   SetCAxes(0,1);
   printf("Hit q to quit.\n");
+
+  // TODO: Fix graphics
   int steps = 0;
   while(steps < nsteps && !CheckForQuit()) {
     steps++;
     /* Call graphics routines. */
     ClearScreen();
-    update_bodies(N, dt, posX, posY, mass, velX, velY);
+    
+    //update_bodies(N, dt, posX, posY, mass, velX, velY);
     for(int i = 0; i < N; i++) {
         DrawCircle(posX[i], posY[i], L, W, mass[i]*0.005, circleColor);
     }
