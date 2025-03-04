@@ -31,15 +31,37 @@ struct args{
   int N;
   int nthreads;
   int id;
+  int nsteps;
   double dt;
   double* dvelX;
   double* dvelY;
 }; 
 
-
 const float circleColor=0;
 const int windowWidth=800;
 const double epsilon = 0.001;
+
+pthread_mutex_t lock;
+pthread_cond_t mysignal;
+int waiting = 0;
+int state = 0;
+
+void barrier(int nthreads) {
+  int mystate; 
+  pthread_mutex_lock (&lock);
+  mystate=state;
+  waiting++;
+  if (waiting == nthreads+1) {
+    waiting = 0;
+    state = 1 - mystate;
+    pthread_cond_broadcast(&mysignal);
+  }
+  while (mystate == state) {
+    pthread_cond_wait(&mysignal, &lock);
+  }
+  pthread_mutex_unlock(&lock);
+}
+
 
 // Gets wall time
 // Taken from Lab 7, Task 6
@@ -103,6 +125,7 @@ void* update_bodies(void* args){
   const int N = args2->N;
   const int nthreads = args2->nthreads;
   const int id = args2->id;
+  const int nsteps = args2->nsteps;
   const double dt = args2->dt;
   double* restrict dvelX = args2->dvelX;
   double* restrict dvelY = args2->dvelY;
@@ -113,36 +136,40 @@ void* update_bodies(void* args){
   
   // Set the gravity constant
   const double G = (double)100/N;
-  //
-  for(int i = id; i < N-1; i+= nthreads) {
-    double accX = 0;
-    double accY = 0;
-    for(int j = i+1; j < N; j++){
-      // Distance related calculations
-      const double dist_x = posX[i] - posX[j];
-      const double dist_y = posY[i] - posY[j];
-      const double relative = sqrt(dist_x*dist_x + dist_y*dist_y);
-      const double rel_eps = relative+epsilon;
-      const double dist_eps = rel_eps * rel_eps * rel_eps; //  relative+epsilon can be pre-computed
+  int steps = 0;
+    while(steps < nsteps){
+    steps++;
+    for(int i = id; i < N-1; i+= nthreads) {
+      double accX = 0;
+      double accY = 0;
+      for(int j = i+1; j < N; j++){
+        // Distance related calculations
+        const double dist_x = posX[i] - posX[j];
+        const double dist_y = posY[i] - posY[j];
+        const double relative = sqrt(dist_x*dist_x + dist_y*dist_y);
+        const double rel_eps = relative+epsilon;
+        const double dist_eps = rel_eps * rel_eps * rel_eps; //  relative+epsilon can be pre-computed
 
-      // Calculate force and force vectors between i and j
-      const double force = -G / dist_eps; // -G, mass can be simplified
-      const double forceX = force * dist_x;
-      const double forceY = force * dist_y;
+        // Calculate force and force vectors between i and j
+        const double force = -G / dist_eps; // -G, mass can be simplified
+        const double forceX = force * dist_x;
+        const double forceY = force * dist_y;
 
-      // Update velocities for all j particles
-      dvelX[j] -= dt * (forceX * mass[i]);
-      dvelY[j] -= dt * (forceY * mass[i]);
+        // Update velocities for all j particles
+        dvelX[j] -= dt * (forceX * mass[i]);
+        dvelY[j] -= dt * (forceY * mass[i]);
 
-      // Update force sum for i particle
-      accX += forceX * mass[j];
-      accY += forceY * mass[j];
+        // Update force sum for i particle
+        accX += forceX * mass[j];
+        accY += forceY * mass[j];
+      }
+      // Update velocities for i particle
+      dvelX[i] += dt * accX;
+      dvelY[i] += dt * accY;
     }
-    // Update velocities for i particle
-    dvelX[i] += dt * accX;
-    dvelY[i] += dt * accY;
+    barrier(nthreads);
+    barrier(nthreads);
   }
-  // Update position for all particles 
   return NULL;
 }
 
@@ -201,12 +228,14 @@ int main(int argc, char *argv[]) {
   args_t args[nthreads];
   double* dvelX[nthreads];
   double* dvelY[nthreads];
+    
 
   // Initialize arguments
   for(int i = 0; i < nthreads; i++) {
     args[i].dt = dt;
     args[i].N = N;
     args[i].id = i;
+    args[i].nsteps = nsteps;
     args[i].nthreads = nthreads;
     args[i].dvelX = (double*)malloc(sizeof(double)*N);
     args[i].dvelY = (double*)malloc(sizeof(double)*N);
@@ -215,14 +244,14 @@ int main(int argc, char *argv[]) {
   double time = get_wall_seconds();
   // Running without graphics
   if(!graphics) {
-    for(int i = 0; i < nsteps; i++) {
-      for(int j = 0; j < nthreads; j++) { 
-        // Launch threads
-        pthread_create(&threads[j], NULL, update_bodies, (void*)&args[j]); 
-      }
+    for(int j = 0; j < nthreads; j++) { 
+      // Launch threads
+      pthread_create(&threads[j], NULL, update_bodies, (void*)&args[j]); 
+    }
+    for(int i = 0; i < nsteps; i++) { 
       // Join threads
+      barrier(nthreads);
       for(int j = 0; j < nthreads; j++) {
-        pthread_join(threads[j], NULL);
         // Sync velocities
         for(int k = 0; k < N; k++) {
           velX[k] += args[j].dvelX[k];
@@ -234,6 +263,8 @@ int main(int argc, char *argv[]) {
         posX[i]+= dt*velX[i];
         posY[i]+= dt*velY[i];
       }
+      // Tell threads to execute
+      barrier(nthreads);
     }
     
     time = get_wall_seconds()-time;
