@@ -1,6 +1,6 @@
 CC = gcc
 LD = gcc
-CFLAGS = -O3 -Wall -ffast-math -march=native -funroll-loops
+CFLAGS = -O3 -Wall -ffast-math -march=native -funroll-loops -fopt-info-vec-missed -fopenmp -lm
 RM = /bin/rm -f -R
 OBJS = galsim.o graphics/graphics.o 
 EXECUTABLE = galsim
@@ -13,7 +13,7 @@ STEPS=100
 DT=0.00001
 GRAPHICS=0
 REF_INPUT=ref_output_data/ellipse_N_03000_after100steps.gal
-N_THREADS=1
+N_THREADS=8
 
 
 all:$(EXECUTABLE)
