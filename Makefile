@@ -1,6 +1,6 @@
 CC = gcc
 LD = gcc
-CFLAGS = -O3 -Wall -ffast-math -march=native -funroll-loops -fopt-info-vec-missed -fopenmp -lm
+CFLAGS = -O3 -Wall -ffast-math -march=native -funroll-loops -lm
 RM = /bin/rm -f -R
 OBJS = galsim.o graphics/graphics.o 
 EXECUTABLE = galsim

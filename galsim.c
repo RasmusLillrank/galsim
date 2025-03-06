@@ -116,13 +116,11 @@ void* update_bodies(void* args){
   
   // Set the gravity constant
   const double G = (double)100/N;
-  #pragma omp simd
   for(int i = id; i < N-1; i+= nthreads) {
     double accX = 0;
     double accY = 0;
     const double px = posX[i];
     const double py = posY[i];
-  #pragma omp simd
     for(int j = i+1; j < N; j++){
       // Distance related calculations
       const double dist_x = px - posX[j];
@@ -177,6 +175,7 @@ void* update_positions(void *args) {
       posX[i]+= dt*velX[i];
       posY[i]+= dt*velY[i];
   }
+  return NULL;
 }
 
 // After loading data store it in separate arrays
