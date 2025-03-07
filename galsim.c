@@ -205,6 +205,13 @@ void join_bodies(int N, body_t* bodies, double* posX, double* posY, double* mass
   free(velY);
 }
 
+void cleanup_threads(int nthreads, args_t* args) {
+  for(int i = 0; i < nthreads; i++) {
+    free(args[i].dvelX);
+    free(args[i].dvelY);
+  }
+}
+
 int main(int argc, char *argv[]) {
   if (argc != 7) {
     printf("Usage: %s N filename nsteps delta_t graphics nthreads\n", argv[0]);
@@ -274,6 +281,7 @@ int main(int argc, char *argv[]) {
     printf("No graphics, time = %lf\n", time);
     join_bodies(N, bodies, posX, posY, mass, velX, velY);
     write_file(N, bodies);
+    cleanup_threads(nthreads, args);
     return 0;
   }
 
@@ -289,7 +297,23 @@ int main(int argc, char *argv[]) {
     /* Call graphics routines. */
     ClearScreen();
     
-    //update_bodies(N, dt, posX, posY, mass, velX, velY);
+    for(int j = 0; j < nthreads; j++) { 
+        // Launch threads
+        pthread_create(&threads[j], NULL, update_bodies, (void*)&args[j]); 
+      }
+      // Join threads
+      for(int j = 0; j < nthreads; j++) {
+        pthread_join(threads[j], NULL);
+      }
+      // Update positions
+      // Parallellize
+      for(int j = 0; j < nthreads; j++) { 
+        // Launch threads
+        pthread_create(&threads[j], NULL, update_positions, (void*)&args[j]); 
+      }
+      for(int j = 0; j < nthreads; j++) {
+        pthread_join(threads[j], NULL);
+      }
     for(int i = 0; i < N; i++) {
         DrawCircle(posX[i], posY[i], L, W, mass[i]*0.005, circleColor);
     }
@@ -303,5 +327,6 @@ int main(int argc, char *argv[]) {
   printf("Graphics, time = %lf\n", time);
   join_bodies(N, bodies, posX, posY, mass, velX, velY);
   write_file(N, bodies);
+  cleanup_threads(nthreads, args);
   return 0;
 }
