@@ -1,0 +1,8 @@
+gmon.out
+compare
+galsim
+galsim.o
+result.gal
+graphics/graphics_test
+graphics/graphics_test.o
+graphics/graphics.o

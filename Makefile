@@ -4,7 +4,7 @@ CFLAGS = -O3 -Wall -ffast-math -march=native -funroll-loops
 RM = /bin/rm -f -R
 OBJS = galsim.o graphics/graphics.o 
 EXECUTABLE = galsim
-LDFLAGS=-L/opt/X11/lib -lX11 -lm
+LDFLAGS=-L/opt/X11/lib -lX11 -lm -fopenmp
 INCLUDES=-I/opt/X11/include
 
 N=3000
@@ -13,6 +13,7 @@ STEPS=100
 DT=0.00001
 GRAPHICS=0
 REF_INPUT=ref_output_data/ellipse_N_03000_after100steps.gal
+N_THREADS=8
 
 
 all:$(EXECUTABLE)
@@ -30,7 +31,7 @@ galsim.o: galsim.c
 	$(CC) $(CFLAGS) -c galsim.c $(LDFLAGS) $(INCLUDES)
 
 test-time: galsim
-	./galsim $(N) $(INPUT) $(STEPS) $(DT) $(GRAPHICS)
+	./galsim $(N) $(INPUT) $(STEPS) $(DT) $(GRAPHICS) $(N_THREADS)
 
 test-output: test-time compare
 	./compare $(N) result.gal $(REF_INPUT)

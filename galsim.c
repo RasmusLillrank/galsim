@@ -3,7 +3,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <sys/time.h>
-#include <pthread.h>
+#include <omp.h>
 
 typedef struct vec vec_t;
 typedef struct body body_t;
@@ -81,39 +81,47 @@ int write_file(int N, body_t* data) {
 void update_bodies(int N, double dt, double* restrict posX, double* restrict posY, double* restrict mass, double* restrict velX, double* restrict velY){
   // Set the gravity constant
   const double G = (double)100/N;
-  //
-  for(int i = 0; i < N; i++) {
-    double accX = 0;
-    double accY = 0;
-    for(int j = i+1; j < N; j++){
-      // Distance related calculations
-      const double dist_x = posX[i] - posX[j];
-      const double dist_y = posY[i] - posY[j];
-      const double relative = sqrt(dist_x*dist_x + dist_y*dist_y);
-      const double rel_eps = relative+epsilon;
-      const double dist_eps = rel_eps * rel_eps * rel_eps; //  relative+epsilon can be pre-computed
+  #pragma omp parallel
+  {
+    #pragma omp for reduction(+:velX[:N], velY[:N]) schedule(dynamic, 32)
+    for(int i = 0; i < N; i++) {
+      double accX = 0;
+      double accY = 0;
+      const double px = posX[i];
+      const double py = posY[i];
+      #pragma omp simd reduction(+:accX, accY)
+      for(int j = i+1; j < N; j++){
+        // Distance related calculations
+        const double dist_x = px - posX[j];
+        const double dist_y = py - posY[j];
+        const double relative = sqrt(dist_x*dist_x + dist_y*dist_y);
+        const double rel_eps = relative+epsilon;
+        const double dist_eps = rel_eps * rel_eps * rel_eps; //  relative+epsilon can be pre-computed
 
-      // Calculate force and force vectors between i and j
-      const double force = -G / dist_eps; // -G, mass can be simplified
-      const double forceX = force * dist_x;
-      const double forceY = force * dist_y;
+        // Calculate force and force vectors between i and j
+        const double force = -G / dist_eps; // -G, mass can be simplified
+        const double forceX = force * dist_x;
+        const double forceY = force * dist_y;
 
-      // Update velocities for all j particles
-      velX[j] -= dt * (forceX * mass[i]);
-      velY[j] -= dt * (forceY * mass[i]);
+        // Update velocities for all j particles
+        velX[j] -= dt * (forceX * mass[i]);
+        velY[j] -= dt * (forceY * mass[i]);
 
-      // Update force sum for i particle
-      accX += forceX * mass[j];
-      accY += forceY * mass[j];
+        // Update force sum for i particle
+        accX += forceX * mass[j];
+        accY += forceY * mass[j];
+      }
+      // Update velocities for i particle
+      velX[i] += dt * accX;
+      velY[i] += dt * accY;
     }
-    // Update velocities for i particle
-    velX[i] += dt * accX;
-    velY[i] += dt * accY;
-  }
-  // Update position for all particles
-  for(int i = 0; i < N; i++) {
-    posX[i]+= dt*velX[i];
-    posY[i]+= dt*velY[i];
+ 
+    // Update position for all particles
+    #pragma omp for schedule(static)
+    for(int i = 0; i < N; i++) {
+      posX[i]+= dt*velX[i];
+      posY[i]+= dt*velY[i];
+    }
   }
 }
 
@@ -145,8 +153,8 @@ void join_bodies(int N, body_t* bodies, double* posX, double* posY, double* mass
 }
 
 int main(int argc, char *argv[]) {
-  if (argc != 6) {
-    printf("Usage: %s N filename nsteps delta_t graphics\n", argv[0]);
+  if (argc != 7) {
+    printf("Usage: %s N filename nsteps delta_t graphics n_threads\n", argv[0]);
     return 0;
   }
   const int N = atoi(argv[1]);
@@ -154,7 +162,10 @@ int main(int argc, char *argv[]) {
   const int nsteps = atoi(argv[3]);
   const double dt = atof(argv[4]);
   const int graphics = atoi(argv[5]);
+  const int n_threads = atoi(argv[6]);
   if(!bodies) {return -1;} // Something went wrong reading the input file
+
+  omp_set_num_threads(n_threads);
   
   double* posX = (double *)malloc(sizeof(double)*N);
   double* posY = (double *)malloc(sizeof(double)*N);
