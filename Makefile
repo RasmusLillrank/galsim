@@ -47,7 +47,7 @@ clean:
 	$(RM) $(EXECUTABLE) $(OBJS) compare result.gal A3 tmpdir_for_checking A3.tar.gz && make -C graphics clean
 
 pack: clean
-	mkdir A3 && cp -R graphics galsim.c report.pdf best_timing.txt Makefile A3 && tar -czf A3.tar.gz A3 gmon.out profile_report.txt
+	mkdir A3 && cp -R graphics galsim.c report.pdf best_timing.txt Makefile A3 && tar -czf A3.tar.gz A3
 
 check: pack
 	./check-A3.sh

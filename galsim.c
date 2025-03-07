@@ -168,8 +168,6 @@ void* update_positions(void *args) {
   const int nthreads = args2->nthreads;
   const int id = args2->id;
   const double dt = args2->dt;
-  double* restrict dvelX = args2->dvelX;
-  double* restrict dvelY = args2->dvelY;
 
   for(int i = id; i < N; i+=nthreads) {
       posX[i]+= dt*velX[i];
@@ -241,8 +239,6 @@ int main(int argc, char *argv[]) {
   // Create threads
   pthread_t threads[nthreads];
   args_t args[nthreads];
-  double* dvelX[nthreads];
-  double* dvelY[nthreads];
 
   // Initialize arguments
   for(int i = 0; i < nthreads; i++) {
